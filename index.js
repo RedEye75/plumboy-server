@@ -58,6 +58,21 @@ async function run() {
       const result = await feedbackCollection.insertOne(review);
       res.send(result);
     });
+    // update
+    app.patch("/myFeedback/:id", async (req, res) => {
+      const id = req.params.id;
+      const status = req.body.status;
+      const query = { _id: ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: status,
+        },
+      };
+      const result = await feedbackCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+
+    // delete
     app.delete("/myFeedback/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
