@@ -39,8 +39,15 @@ async function run() {
     });
 
     // review api
+
     app.get("/myFeedback", async (req, res) => {
-      const query = {};
+      // console.log(req.query);
+      let query = {};
+      if (req.query.email) {
+        query = {
+          email: req.query.email,
+        };
+      }
       const cursor = feedbackCollection.find(query);
       const myFeedback = await cursor.toArray();
       res.send(myFeedback);
@@ -49,6 +56,12 @@ async function run() {
     app.post("/reviews", async (req, res) => {
       const review = req.body;
       const result = await feedbackCollection.insertOne(review);
+      res.send(result);
+    });
+    app.delete("/myFeedback/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await feedbackCollection.deleteOne(query);
       res.send(result);
     });
   } finally {
