@@ -19,14 +19,16 @@ const client = new MongoClient(uri, {
 });
 // jwt verification
 function JWTVerify(req, res, next) {
-  const authHeader = req.header.authorization;
+  const authHeader = req.headers.authorization;
+  console.log(authHeader);
   if (!authHeader) {
     return res.status(401).send({ message: "unauthorized access" });
   }
   const token = authHeader.split(" ")[1];
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (error, decoded) {
     if (error) {
-      res.status(403).send({ message: "forbidden access" });
+      console.log(error);
+      return res.status(403).send({ message: "forbidden access" });
     }
     req.decoded = decoded;
     next();
@@ -77,7 +79,7 @@ async function run() {
 
     // review api
     app.get("/myFeedback", JWTVerify, async (req, res) => {
-      // console.log(req.headers.authorization);
+      console.log(req.headers.authorization);
       const decoded = req.decoded;
       console.log(decoded);
       if (decoded.email !== req.query.email) {
