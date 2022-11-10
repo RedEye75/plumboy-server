@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 7000;
@@ -16,6 +17,21 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+// jwt verification
+function JWTVerify(req, res, next) {
+  const authHeader = req.header.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (error, decoded) {
+    if (error) {
+      res.status(403).send({ message: "forbidden access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
 
 async function run() {
   try {
@@ -23,6 +39,14 @@ async function run() {
     const serviceCollection = client.db("plumboy").collection("services");
     const feedbackCollection = client.db("plumboy").collection("feedback");
 
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "2h",
+      });
+      res.send({ token });
+    });
     // services api
     app.get("/services", async (req, res) => {
       const query = {};
@@ -38,6 +62,12 @@ async function run() {
       res.send(services);
     });
 
+    app.post("/serviceAdd", async (req, res) => {
+      const service = req.body;
+      const result = await serviceCollection.insertOne(service);
+      res.send(result);
+    });
+
     app.get("/services/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
@@ -46,9 +76,13 @@ async function run() {
     });
 
     // review api
-
-    app.get("/myFeedback", async (req, res) => {
-      // console.log(req.query);
+    app.get("/myFeedback", JWTVerify, async (req, res) => {
+      // console.log(req.headers.authorization);
+      const decoded = req.decoded;
+      console.log(decoded);
+      if (decoded.email !== req.query.email) {
+        res.status(403).send({ message: "unauthorized access" });
+      }
       let query = {};
       if (req.query.email) {
         query = {
@@ -65,8 +99,9 @@ async function run() {
       const result = await feedbackCollection.insertOne(review);
       res.send(result);
     });
+
     // update
-    app.patch("/myFeedback/:id", async (req, res) => {
+    app.patch("/myFeedback/:id", JWTVerify, async (req, res) => {
       const id = req.params.id;
       const status = req.body.status;
       const query = { _id: ObjectId(id) };
@@ -80,7 +115,7 @@ async function run() {
     });
 
     // delete
-    app.delete("/myFeedback/:id", async (req, res) => {
+    app.delete("/myFeedback/:id", JWTVerify, async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await feedbackCollection.deleteOne(query);
